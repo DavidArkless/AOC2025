@@ -6,20 +6,36 @@ import (
 	"log"
 	"os"
 	"strconv"
+	"strings"
 )
+
+type solutionData struct {
+	minPosition int
+	maxPosition int
+	position    int
+	count       int
+}
 
 func main() {
 	filePath := "day1/rotations.txt"
-	part1Pos := 50
-	part2Pos := 50
-	maxPosition := 99
-	minPosition := 0
-	var part1Count int
-	var part2Count int
+
+	part1Solution := solutionData{
+		minPosition: 0,
+		maxPosition: 99,
+		position:    50,
+		count:       0,
+	}
+
+	part2Solution := solutionData{
+		minPosition: 0,
+		maxPosition: 99,
+		position:    50,
+		count:       0,
+	}
 
 	file, err := os.Open(filePath)
 	if err != nil {
-		panic(err)
+		log.Fatal(err)
 	}
 	defer file.Close()
 
@@ -27,19 +43,31 @@ func main() {
 	for scanner.Scan() {
 		direction, amount := parseInstruction(scanner.Text())
 
-		part1Pos, part1Count = part1(direction, amount, part1Pos, maxPosition, minPosition, part1Count)
-		part2Pos, part2Count = part2(direction, amount, part2Pos, maxPosition, minPosition, part2Count)
+		part1Solution.part1(direction, amount)
+		part2Solution.part2(direction, amount)
 
 	}
 
-	fmt.Println(part1Pos, part1Count)
-	fmt.Println(part2Pos, part2Count)
+	if err := scanner.Err(); err != nil {
+		log.Fatal(err)
+	}
+
+	fmt.Printf("Part 1 -> position=%d, zero_hits=%d\n", part1Solution.position, part1Solution.count)
+	fmt.Printf("Part 2 -> position=%d, zero_crossings=%d\n", part2Solution.position, part2Solution.count)
 
 }
 
 func parseInstruction(instruction string) (direction string, amount int) {
-	direction = instruction[:1]
-	amount, err := strconv.Atoi(instruction[1:])
+	s := strings.TrimSpace(instruction)
+	if len(s) < 2 {
+		log.Fatalf("invalid instruction: %q", instruction)
+	}
+	direction = s[:1]
+	if direction != "R" && direction != "L" {
+		log.Fatalf("invalid direction in instruction: %q", instruction)
+	}
+	var err error
+	amount, err = strconv.Atoi(s[1:])
 	if err != nil {
 		log.Fatal(err)
 	}
@@ -47,50 +75,45 @@ func parseInstruction(instruction string) (direction string, amount int) {
 
 }
 
-func part1(direction string, amount int, position int, maxPosition int, minPosition int, count int) (int, int) {
-	divisor := maxPosition - minPosition + 1
+func (sol *solutionData) part1(direction string, amount int) {
+	divisor := sol.maxPosition - sol.minPosition + 1
 	if direction == "R" {
-		position += amount
+		sol.position += amount
 	}
 	if direction == "L" {
-		position -= amount
+		sol.position -= amount
 	}
 
-	if position > maxPosition || position < minPosition {
-		position = ((position % divisor) + divisor) % divisor
+	// Always normalize to keep invariant explicit
+	sol.position = ((sol.position % divisor) + divisor) % divisor
 
+	if sol.position == 0 {
+		sol.count++
 	}
-
-	if position == 0 {
-		count++
-	}
-
-	return position, count
 
 }
 
-func part2(direction string, amount int, position int, maxPosition int, minPosition int, count int) (int, int) {
-	divisor := maxPosition - minPosition + 1
+func (sol *solutionData) part2(direction string, amount int) {
+	divisor := sol.maxPosition - sol.minPosition + 1
 
 	if direction == "R" {
-		count += (position + amount) / divisor
-		position += amount
+		sol.count += (sol.position + amount) / divisor
+		sol.position += amount
 	}
 
 	if direction == "L" {
-		distanceToZero := position
+		distanceToZero := sol.position
 		if distanceToZero == 0 {
 			distanceToZero = divisor
 		}
 
 		if amount >= distanceToZero {
-			count++
-			count += (amount - distanceToZero) / divisor
+			sol.count++
+			sol.count += (amount - distanceToZero) / divisor
 		}
-		position -= amount
+		sol.position -= amount
 	}
 
-	position = ((position % divisor) + divisor) % divisor
+	sol.position = ((sol.position % divisor) + divisor) % divisor
 
-	return position, count
 }
